@@ -52,7 +52,7 @@ RCT_EXPORT_METHOD(setContentMetaData:(NSDictionary *) options)
                                  month:[RCTConvert NSInteger:options[@"dateOfTvAiring"][@"month"]]
                                    day:[RCTConvert NSInteger:options[@"dateOfTvAiring"][@"day"]]];
         [builder setTimeOfProductionHours:[RCTConvert NSInteger:options[@"timeOfProduction"][@"hour"]]
-                                  minutes:[RCTConvert NSInteger:options[@"timeOfProduction"][@"minitues"]]];
+                                  minutes:[RCTConvert NSInteger:options[@"timeOfProduction"][@"minute"]]];
         [builder setStationCode: [RCTConvert NSString:options[@"setStationCode"]]];
         [builder setEpisodeTitle: [RCTConvert NSString:options[@"episodeTitle"]]];
         [builder setEpisodeId: [RCTConvert NSString:options[@"episodeId"]]];
@@ -65,6 +65,7 @@ RCT_EXPORT_METHOD(setContentMetaData:(NSDictionary *) options)
 
 RCT_EXPORT_METHOD(trackBufferStartEvent)
 {
+    [sa setMetadata: contentMetadata];
     [sa notifyBufferStart];
 }
 
@@ -107,6 +108,7 @@ RCT_EXPORT_METHOD(trackVideoEndEvent)
 
 RCT_EXPORT_METHOD(trackSeekEvent)
 {
+    [sa setMetadata: contentMetadata];
     [sa notifySeekStart];
 }
 
