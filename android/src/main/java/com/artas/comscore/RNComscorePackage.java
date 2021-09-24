@@ -1,5 +1,5 @@
 
-package com.reactlibrary;
+package com.artas.comscore;
 
 import java.util.Arrays;
 import java.util.Collections;

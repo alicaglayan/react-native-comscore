@@ -16,14 +16,14 @@ RCT_EXPORT_MODULE()
 
 RCT_EXPORT_METHOD(init:(NSString *) publisherId)
 {
-    SCORPublisherConfiguration *myPublisherConfig = [SCORPublisherConfiguration
-      publisherConfigurationWithBuilderBlock:^(SCORPublisherConfigurationBuilder *builder) {
-        builder.publisherId = publisherId;
-      }];
-    [[SCORAnalytics configuration] addClientWithConfiguration:myPublisherConfig];
-    
-    [SCORAnalytics start];
-    
+//    SCORPublisherConfiguration *myPublisherConfig = [SCORPublisherConfiguration
+//      publisherConfigurationWithBuilderBlock:^(SCORPublisherConfigurationBuilder *builder) {
+//        builder.publisherId = publisherId;
+//      }];
+//    [[SCORAnalytics configuration] addClientWithConfiguration:myPublisherConfig];
+//
+//    [SCORAnalytics start];
+
     sa = [[SCORStreamingAnalytics alloc] init];
     [sa createPlaybackSession];
 }
@@ -31,15 +31,15 @@ RCT_EXPORT_METHOD(init:(NSString *) publisherId)
 RCT_EXPORT_METHOD(setContentMetaData:(NSDictionary *) options)
 {
     NSInteger mediaType = 0;
-    
-    if ([options[@"mediaType"]  isEqual: @"long"]) {
+
+    if ([options[@"mediaType"] isEqual: @"long"]) {
         mediaType = SCORStreamingContentTypeLongFormOnDemand;
-    } else if ([options[@"mediaType"]  isEqual: @"short"]) {
+    } else if ([options[@"mediaType"] isEqual: @"short"]) {
         mediaType = SCORStreamingContentTypeShortFormOnDemand;
-    } else if ([options[@"mediaType"]  isEqual: @"live"]) {
+    } else if ([options[@"mediaType"] isEqual: @"live"]) {
         mediaType = SCORStreamingContentTypeLive;
     }
-    
+
     contentMetadata = [SCORStreamingContentMetadata
     contentMetadataWithBuilderBlock:^(SCORStreamingContentMetadataBuilder *builder) {
         [builder setMediaType: mediaType];
@@ -48,12 +48,12 @@ RCT_EXPORT_METHOD(setContentMetaData:(NSDictionary *) options)
         [builder setDictionaryClassificationC3: @"*null"];
         [builder setDictionaryClassificationC4: @"*null"];
         [builder setDictionaryClassificationC6: @"*null"];
-        [builder setDateOfTvAiringYear:[RCTConvert NSInteger:options[@"dateOfTvAiring"][@"year"]]
-                                 month:[RCTConvert NSInteger:options[@"dateOfTvAiring"][@"month"]]
-                                   day:[RCTConvert NSInteger:options[@"dateOfTvAiring"][@"day"]]];
-        [builder setTimeOfProductionHours:[RCTConvert NSInteger:options[@"timeOfProduction"][@"hour"]]
-                                  minutes:[RCTConvert NSInteger:options[@"timeOfProduction"][@"minute"]]];
-        [builder setStationCode: [RCTConvert NSString:options[@"setStationCode"]]];
+        [builder setDateOfTvAiringYear:[options[@"dateOfTvAiring"][@"year"] ? options[@"dateOfTvAiring"][@"year"] : 0 integerValue]
+                                 month:[options[@"dateOfTvAiring"][@"month"] ? options[@"dateOfTvAiring"][@"month"] : 0 integerValue]
+                                   day:[options[@"dateOfTvAiring"][@"day"] ? options[@"dateOfTvAiring"][@"day"] : 0 integerValue]];
+        [builder setTimeOfProductionHours:[options[@"timeOfProduction"][@"hour"] ? options[@"timeOfProduction"][@"hour"] : 0 integerValue]
+                                  minutes:[options[@"timeOfProduction"][@"minute"] ? options[@"timeOfProduction"][@"minute"] : 0 integerValue]];
+        [builder setStationCode: [RCTConvert NSString:options[@"stationCode"]]];
         [builder setEpisodeTitle: [RCTConvert NSString:options[@"episodeTitle"]]];
         [builder setEpisodeId: [RCTConvert NSString:options[@"episodeId"]]];
         [builder setProgramId: [RCTConvert NSString:options[@"programId"]]];
@@ -61,54 +61,70 @@ RCT_EXPORT_METHOD(setContentMetaData:(NSDictionary *) options)
         [builder setProgramTitle: [RCTConvert NSString:options[@"programTitle"]]];
         [builder classifyAsCompleteEpisode: YES];
     }];
+    [sa setMetadata: contentMetadata];
 }
 
 RCT_EXPORT_METHOD(trackBufferStartEvent)
 {
-    [sa setMetadata: contentMetadata];
     [sa notifyBufferStart];
 }
 
-
-RCT_EXPORT_METHOD(trackVideoPlayEvent)
+RCT_EXPORT_METHOD(trackBufferStopEvent)
 {
-    [sa setMetadata: contentMetadata];
+    [sa notifyBufferStop];
+}
+
+RCT_EXPORT_METHOD(trackVideoPlayEvent: (NSInteger) currentTime)
+{
+    [sa startFromPosition: currentTime];
+    [sa notifyPlay];
+}
+
+RCT_EXPORT_METHOD(trackLivePlayEvent: (NSInteger) dvrOffset
+                  length: (NSInteger) length)
+{
+    [sa setDVRWindowLength: length];
+    [sa startFromDvrWindowOffset: dvrOffset];
     [sa notifyPlay];
 }
 
 RCT_EXPORT_METHOD(trackAdPlayEvent)
 {
-    [sa setMetadata: adMetadata];
     [sa notifyPlay];
 }
 
-RCT_EXPORT_METHOD(trackVideoPauseEvent)
+RCT_EXPORT_METHOD(trackVideoPauseEvent: (NSInteger) currentTime)
 {
-    [sa setMetadata: contentMetadata];
+    [sa startFromPosition: currentTime];
+    [sa notifyPause];
+}
+
+RCT_EXPORT_METHOD(trackLivePauseEvent: (NSInteger) dvrOffset
+                  length: (NSInteger) length)
+{
+    [sa setDVRWindowLength: length];
+    [sa startFromDvrWindowOffset: dvrOffset];
     [sa notifyPause];
 }
 
 RCT_EXPORT_METHOD(trackAdPauseEvent)
 {
-    [sa setMetadata: adMetadata];
     [sa notifyPause];
 }
 
 RCT_EXPORT_METHOD(trackAdEndEvent)
 {
-    [sa setMetadata: adMetadata];
     [sa notifyEnd];
 }
 
 RCT_EXPORT_METHOD(trackVideoEndEvent)
 {
-    [sa setMetadata: contentMetadata];
     [sa notifyEnd];
 }
 
-RCT_EXPORT_METHOD(trackSeekEvent)
+RCT_EXPORT_METHOD(trackSeekStartEvent: (NSInteger) currentTime)
 {
-    [sa setMetadata: contentMetadata];
+    [sa startFromPosition: currentTime];
     [sa notifySeekStart];
 }
 
@@ -116,13 +132,15 @@ RCT_EXPORT_METHOD(setAdMetaData:(NSString *) adType
                   adId:(NSString *) adId)
 {
     NSInteger mediaType = 0;
-    
+
     if ([adType isEqual: @"preroll"]) {
         mediaType = SCORStreamingAdvertisementTypeOnDemandPreRoll;
     } else if ([adType isEqual: @"midroll"]) {
         mediaType = SCORStreamingAdvertisementTypeOnDemandMidRoll;
     } else if ([adType isEqual: @"postroll"]) {
         mediaType = SCORStreamingAdvertisementTypeOnDemandPostRoll;
+    } else if ([adType isEqual: @"live"]) {
+        mediaType = SCORStreamingAdvertisementTypeLive;
     }
     adMetadata = [SCORStreamingAdvertisementMetadata
     advertisementMetadataWithBuilderBlock:^(SCORStreamingAdvertisementMetadataBuilder *builder) {
@@ -135,4 +153,4 @@ RCT_EXPORT_METHOD(setAdMetaData:(NSString *) adType
 
 
 @end
-  
+
