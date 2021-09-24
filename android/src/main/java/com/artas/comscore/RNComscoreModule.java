@@ -1,5 +1,4 @@
-
-package com.reactlibrary;
+package com.artas.comscore;
 
 import com.comscore.Analytics;
 import com.comscore.PublisherConfiguration;
@@ -47,9 +46,9 @@ public class RNComscoreModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void setContentMetaData(ReadableMap options) {
     int mediaType = 0;
-    String mediaTypeName = options.getString("mediaType");
+    String mediaTypeName = options.getString("mediaType") != null ? options.getString("mediaType") : "long";
 
-    switch (Objects.requireNonNull(mediaTypeName)) {
+    switch (mediaTypeName) {
       case "long":
         mediaType = ContentType.LONG_FORM_ON_DEMAND;
         break;
@@ -60,27 +59,27 @@ public class RNComscoreModule extends ReactContextBaseJavaModule {
         mediaType = ContentType.LIVE;
         break;
     }
-
     ReadableMap date = options.getMap("dateOfTvAiring");
     ReadableMap time = options.getMap("timeOfProduction");
-    if (date != null) {
-      contentMetadata = new ContentMetadata.Builder()
-              .stationCode(options.getString("stationCode"))
-              .uniqueId(options.getString("uniqueId"))
-              .dateOfTvAiring(Integer.parseInt(Objects.requireNonNull(date.getString("year"))),
-                      Integer.parseInt(Objects.requireNonNull(date.getString("month"))),
-                      Integer.parseInt(Objects.requireNonNull(date.getString("day"))))
-              .timeOfProduction(Integer.parseInt(Objects.requireNonNull(time.getString("hour"))),
-                      Integer.parseInt(Objects.requireNonNull(time.getString("minute"))))
-              .length(Long.parseLong(Objects.requireNonNull(options.getString("length"))))
-              .mediaType(ContentType.LONG_FORM_ON_DEMAND)
-              .programId(options.getString("programId"))
-              .programTitle(options.getString("programTitle"))
-              .episodeId(options.getString("episodeId"))
-              .episodeTitle(options.getString("episodeTitle"))
-              .publisherName(options.getString("publisherName"))
-              .build();
-    }
+
+    contentMetadata = new ContentMetadata.Builder()
+            .stationCode(options.getString("stationCode") != null ? options.getString("stationCode") : "")
+            .uniqueId(options.getString("uniqueId") != null ? options.getString("uniqueId") : "")
+            .dateOfTvAiring(Integer.parseInt(date != null && date.getString("year") != null ? date.getString("year") : "0"),
+                    Integer.parseInt(date != null && date.getString("month") != null ? date.getString("month") : "0"),
+                    Integer.parseInt(date != null && date.getString("day") != null ? date.getString("day") : "0"))
+            .timeOfProduction(Integer.parseInt(time != null && time.getString("hour") != null ? time.getString("hour") : "0"),
+                    Integer.parseInt(time != null && time.getString("minute") != null ? time.getString("minute") : "0"))
+            .length(options.getInt("length"))
+            .mediaType(ContentType.LONG_FORM_ON_DEMAND)
+            .programId(options.getString("programId") != null ? options.getString("programId") : "")
+            .programTitle(options.getString("programTitle") != null ? options.getString("programTitle") : "")
+            .episodeId(options.getString("episodeId") != null ? options.getString("episodeId") : "")
+            .episodeTitle(options.getString("episodeTitle") != null ? options.getString("episodeTitle") : "")
+            .publisherName(options.getString("publisherName") != null ? options.getString("publisherName") : "")
+            .build();
+
+    sa.setMetadata(contentMetadata);
   }
 
   @ReactMethod
@@ -97,6 +96,9 @@ public class RNComscoreModule extends ReactContextBaseJavaModule {
       case "postroll":
         mediaType = AdvertisementType.ON_DEMAND_POST_ROLL;
         break;
+      case "live":
+        mediaType = AdvertisementType.LIVE;
+        break;
     }
     adMetadata = new AdvertisementMetadata.Builder()
             .uniqueId(adId)
@@ -108,49 +110,68 @@ public class RNComscoreModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void trackBufferStartEvent() {
-    sa.setMetadata(contentMetadata);
     sa.notifyBufferStart();
   }
 
   @ReactMethod
-  public void trackVideoPlayEvent() {
-    sa.setMetadata(contentMetadata);
+  public void trackBufferStopEvent() {
+    sa.notifyBufferStop();
+  }
+
+  @ReactMethod
+  public void trackVideoPlayEvent(Integer time) {
+    sa.startFromPosition(time);
     sa.notifyPlay();
+  }
+
+  @ReactMethod
+  public void trackLivePlayEvent(Integer time, Integer length) {
+    sa.setDvrWindowLength(length);
+    sa.startFromDvrWindowOffset(time);
+    sa.notifyPlay();
+  }
+
+  @ReactMethod
+  public void trackSeekStartEvent(Integer time) {
+    sa.startFromPosition(time);
+    sa.notifySeekStart();
   }
 
   @ReactMethod
   public void trackAdPlayEvent() {
-    sa.setMetadata(adMetadata);
     sa.notifyPlay();
   }
 
   @ReactMethod
-  public void trackVideoPauseEvent() {
-    sa.setMetadata(contentMetadata);
-    sa.notifyPlay();
+  public void trackVideoPauseEvent(Integer time) {
+    sa.startFromPosition(time);
+    sa.notifyPause();
+  }
+
+  @ReactMethod
+  public void trackLivePauseEvent(Integer time, Integer length) {
+    sa.setDvrWindowLength(length);
+    sa.startFromDvrWindowOffset(time);
+    sa.notifyPause();
   }
 
   @ReactMethod
   public void trackAdPauseEvent() {
-    sa.setMetadata(adMetadata);
-    sa.notifyPlay();
+    sa.notifyPause();
   }
 
   @ReactMethod
   public void trackAdEndEvent() {
-    sa.setMetadata(adMetadata);
-    sa.notifyPlay();
+    sa.notifyEnd();
   }
 
   @ReactMethod
   public void trackVideoEndEvent() {
-    sa.setMetadata(contentMetadata);
-    sa.notifyPlay();
+    sa.notifyEnd();
   }
 
   @ReactMethod
   public void trackSeekEvent() {
-    sa.setMetadata(contentMetadata);
     sa.notifyPlay();
   }
 }
